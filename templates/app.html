@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        .host-tag{
+            display: inline-block;
+            padding: 3px;
+            border: 1px solid red;
+            background-color: blue;
+        }
+                .hide{
+            display: none;
+        }
+        .shade{
+            position: fixed;
+            top:0;
+            right:0;
+            left:0;
+            bottom:0;
+            background: black;
+            opacity:0.6;
+            z-index: 100;
+        }
+        .add-modal,.edit-modal{
+            position: fixed;
+            height: 300px;
+            width: 400px;
+            top: 100px;
+            left: 50%;
+            z-index: 101;
+            border: 1px solid red;
+            background: white;
+            margin-left: -200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>应用列表</h1>
+    <div>
+        <input  id="add_app" type="button" value="添加" />
+    </div>
+    <form id="del_form" method="POST" action="/app01/ajax_del_host_app">
+        <table border="1">
+            <thead>
+                <tr>
+                    <td>应用名称</td>
+                    <td>应用主机列表</td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in app_list %}
+                    <tr aid="{{ app.id }}" app_name="{{ app.name }}">
+                        <td>{{ app.name }}</td>
+                        <td>
+                            {% for host in app.r.all %}
+                                <span class="host-tag" hid="{{ host.nid }}">{{ host.hostname }}</span><a del_id="del_hostToapp" style="color: red;">x</a>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <a class="edit">编辑</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+        <!--遮罩层-->
+    <div class="shade hide"></div>
+
+    <!--添加框-->
+    <div class="add-modal hide">
+        <form id="add_form" method="POST" action="/app01/app">
+            <div class="group">
+                <input id="app_name" type="text" placeholder="应用名称" name="app_name" />
+            </div>
+            <div class="group">
+               <select id="host_list" name="host_list" multiple>
+                    {% for op in host_list %}
+                        <option value="{{ op.nid }}">{{ op.hostname }}</option>
+                    {% endfor %}
+               </select>
+            </div>
+            <input type="submit" value="提交" />
+            <input id="add_submit_ajax" type="button" value="Ajax提交" />
+            <input id="cancel" type="button" value="取消" />
+            <span id="error_meg" style="color: red"></span>
+
+        </form>
+    </div>
+
+    <!--编辑框-->
+    <div class="edit-modal hide">
+        <form id="edit_form" method="POST" action="/app01/app">
+                <input type="text" name='aid' style="display: none"/>
+                <input type="text" placeholder="应用名称" name="app_name" />
+               <select name="host_list" multiple>
+                    {% for op in host_list %}
+                        <option value="{{ op.nid }}">{{ op.hostname }}</option>
+                    {% endfor %}
+               </select>
+            <a id="ajax_submit_edit" style="display: inline-block;padding: 5px; background-color: blue;color: white;">确认编辑</a>
+            <span id="error_meg" style="color: red"></span>
+        </form>
+    </div>
+
+    <script src="/static/js/jquery-1.12.4.js"></script>
+    <script>
+        $(function () {
+            $('#add_app').click(function () {
+                $('.shade,.add-modal').removeClass('hide');
+            });
+            $('#cancel').click(function () {
+                $('.shade,.add-modal').addClass('hide');
+            });
+
+            //添加
+            $('#add_submit_ajax').click(function () {
+                $.ajax({
+                    url:'/app01/ajax_add_app',
+                    data: $('#add_form').serialize(),
+                    traditional: true,  //这个参数加上发送的data数据就可以使列表了，如果不加只能发送单个数据，上边data的数据列表是发送不到后台的，会发一个None给后台
+                    type:  "POST",
+                    dataType: 'JSON',  //这个参数就是把data整体变成对象了，下边用的obj
+                    success: function (obj) {
+                        if (obj.status){
+                            location.reload();
+                        }else {
+                            $('#error_meg').text(obj.error);
+                        }
+                    },
+                    error: function () {
+                        $('#error_meg').text('未知错误');
+                    }
+                })
+            });
+
+            //编辑
+            $('.edit').click(function () {
+                //获取当前应用所在主机列表
+                $('.edit-modal,.shade').removeClass('hide');
+                var hid_list = [];
+                $(this).parent().prev().children().each(function () {
+                    var hid = $(this).attr('hid');
+                    //var test = $(this).text
+                    //console.log(hid);
+                    hid_list.push(hid);
+                });
+
+                //his_list 在上边循环获取
+                var app_name = $(this).parent().parent().attr('app_name');
+                var aid = $(this).parent().parent().attr('aid');
+
+
+                $('#edit_form').find('input[name="aid"]').val(aid);
+                $('#edit_form').find('select').val(hid_list);
+                $('#edit_form').find('input[name="app_name"]').val(app_name);
+
+                $('#ajax_submit_edit').click(function () {
+                    $.ajax({
+                        url:'/app01/ajax_edit_app',
+                        data: $('#edit_form').serialize(),
+                        traditional: true,
+                        type:  "POST",
+                        dataType: 'JSON',  //这个参数就是把data整体变成对象了，下边用的obj
+                        success: function (obj) {
+                            if (obj.status){
+                                location.reload();
+                            }else {
+                                $('#error_meg').text(obj.error);
+                            }
+                        },
+                        error: function () {
+                            $('#error_meg').text('未知错误');
+                        }
+                    })
+                 });
+            });
+
+        //删除host
+            $('[del_id="del_hostToapp"]').click(function () {
+                var hid = $(this).prev().attr('hid');
+                var aid = $(this).parent().parent().attr('aid');
+                $.ajax({
+                    url:'/app01/ajax_del_host_app',
+                    data:{'hid':hid,'aid':aid},
+                    traditional: true,
+                    type:  "POST",
+                    dataType: 'JSON',  //这个参数就是把data整体变成对象了，下边用的obj
+                    success: function (obj) {
+                        if (obj.status){
+                            location.reload();
+                        }else {
+                            $('#error_meg').text(obj.error);
+                        }
+                    },
+                    error: function () {
+                        $('#error_meg').text('未知错误');
+                    }
+                })
+             });
+        });
+
+
+
+    </script>
+
+</body>
+</html>

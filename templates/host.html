@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        .hide{
+            display: none;
+        }
+        .shade{
+            position: fixed;
+            top:0;
+            right:0;
+            left:0;
+            bottom:0;
+            background: black;
+            opacity:0.6;
+            z-index: 100;
+        }
+        .add-modal,.edit-modal{
+            position: fixed;
+            height: 300px;
+            width: 400px;
+            top: 100px;
+            left: 50%;
+            z-index: 101;
+            border: 1px solid red;
+            background: white;
+            margin-left: -200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>主机列表(对象)</h1>
+    <div>
+        <input  id="add_host" type="button" value="添加" />
+    </div>
+    <table border="1">
+        <thead>
+            <tr host-id="{{ row.nid }}" business-id="{{ row.b_id }}">
+{#                一般情况这个主机id是不用显示的，但是在编辑的时候还需要用到，这样就在tr这里设置一个属性#}
+{#                <th>主机ID</th>#}
+                <th>主机名</th>
+                <th>IP地址</th>
+                <th>端口号</th>
+{#                <th>业务线ID</th>#}
+                <th>业务线名称</th>
+{#                <th>业务线编码</th>#}
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in v1 %}
+                <tr hid="{{ row.nid }}" bid="{{ row.b_id }}" hostname_id="{{ row.hostname }}" ip_id="{{ row.ip }}" port_id="{{ row.port }}" >
+{#                    <td>{{ row.nid }}</td>#}
+                    <td>{{ row.hostname }}</td>
+                    <td>{{ row.ip }}</td>
+                    <td>{{ row.port }}</td>
+{#                    <td>{{ row.b_id }}</td>#}
+                    <td>{{ row.b.caption }}</td>
+{#                    <td>{{ row.b.code }}</td>#}
+                    <td>
+                        <a class="edit">编辑</a>|<a class="delete">删除</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h1>主机列表(字典)</h1>
+    <table border="1">
+        <thead>
+            <tr host-id="{{ row.nid }}" business-id="{{ row.b_id }}">
+                <th>序号</th>
+                <th>主机名</th>
+                <th>业务线名称</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in v2 %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>  <!--记录循环到第几次计数从1开始-->
+{#                    <td>{{ forloop.counter0 }}</td>  <!--记录循环到第几次计数从0开始-->#}
+{#                    <td>{{ forloop.revcounter }}</td>  <!--记录循环到第几次计数从倒序开始-->#}
+{#                    <td>{{ forloop.last }}</td>  <!--是否是最后一个，最后一个现实True，不是得行现实False   还有一个first是否是第一个-->#}
+{#                     <td>{{ forloop.parentloop }}</td>  <!--多层循环的时候，内部循环里用这个参数可以获取上一层循环的forloop的6个数据-->#}
+                    <td>{{ row.hostname }}</td>
+                    <td>{{ row.b__caption }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h1>主机列表(元组)</h1>
+    <table border="1">
+        <thead>
+            <tr host-id="{{ row.0 }}" business-id="{{ row.2 }}">
+                <th>主机名</th>
+                <th>业务线名称</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in v3 %}
+                <tr>
+                    <td>{{ row.1 }}</td>
+                    <td>{{ row.3 }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!--遮罩层-->
+    <div class="shade hide"></div>
+
+    <!--添加框-->
+    <div class="add-modal hide">
+        <form id="add_form" method="POST" action="/app01/host">
+            <div class="group">
+                <input id="host" type="text" placeholder="主机名" name="hostname" />
+            </div>
+            <div class="group">
+                <input id="ip" type="text" placeholder="IP" name="ip" />
+            </div>
+            <div class="group">
+                <input id="port" type="text" placeholder="端口" name="port" />
+            </div>
+            <div class="group">
+               <select id="sel" name="b_id">
+                    {% for op in b_list %}
+                        <option value="{{ op.id }}">{{ op.caption }}</option>
+                    {% endfor %}
+               </select>
+            </div>
+            <input type="submit" value="提交" />
+            <a id="ajax_submit" style="display: inline-block;padding: 5px; background-color: blue;color: white;">悄悄提交</a>
+            <input id="cancel" type="button" value="取消" />
+            <span id="error_meg" style="color: red"></span>
+        </form>
+    </div>
+
+    <!--编辑框-->
+    <div class="edit-modal hide">
+        <form id="edit_form" method="POST" action="/app01/host">
+                <input type="text" name="nid" style="display: none"/>
+                <input type="text" placeholder="主机名" name="hostname" />
+                <input type="text" placeholder="IP" name="ip" />
+                <input type="text" placeholder="端口" name="port" />
+               <select name="b_id">
+                    {% for op in b_list %}
+                        <option value="{{ op.id }}">{{ op.caption }}</option>
+                    {% endfor %}
+               </select>
+            <a id="ajax_submit_edit" style="display: inline-block;padding: 5px; background-color: blue;color: white;">确认编辑</a>
+            <input id="edit_cancel" type="button" value="取消" />
+        </form>
+    </div>
+
+    <script src="/static/js/jquery-1.12.4.js"></script>
+    <script>
+        $(function () {
+            $('#add_host').click(function () {
+                $('.shade,.add-modal').removeClass('hide');
+            });
+            $('#cancel').click(function () {
+                $('.shade,.add-modal').addClass('hide');
+            });
+            $('#edit_cancel').click(function () {
+                $('.shade,.edit-modal').addClass('hide');
+            });
+
+
+            //添加数据
+            $('#ajax_submit').click(function () {
+                $.ajax({
+                    url:"/app01/test_ajax",
+                    type:'POST',
+                    //data:{'hostname':$('#host').val(),'ip':$('#ip').val(),"port":$('#port').val(),'b_id':$('#sel').val()},
+                    data :$('#add_form').serialize(),
+                    success:function (data) {
+                        //alert(data);
+    {#                    if(data == "OK"){#}
+    {#                         window.location.reload();#}
+    {#                    }else {#}
+    {#                        alert(data);#}
+                            //console.log(data)
+                            var obj = JSON.parse(data);  //反序列化，把字符串转换成对象
+                            //var obj = JSON.stringify(data)  把对象转换成字符串
+                            if (obj.status){
+                                location.reload();
+                            }else {
+                                $('#error_meg').text(obj.error);
+                            }
+                    }
+                });
+            });
+
+            //编辑操作
+            $('.edit').click(function () {
+                $('.shade,.edit-modal').removeClass('hide');
+
+                var bid = $(this).parent().parent().attr('bid');
+                var nid = $(this).parent().parent().attr('hid');
+                var hostname_id = $(this).parent().parent().attr('hostname_id');
+                var ip_id = $(this).parent().parent().attr("ip_id");
+                var port_id = $(this).parent().parent().attr('port_id');
+
+                $('#edit_form').find('select').val(bid);
+                $('#edit_form').find('input[name="nid"]').val(nid);
+                $('#edit_form').find('input[name="hostname"]').val(hostname_id);
+                $('#edit_form').find('input[name="ip"]').val(ip_id);
+                $('#edit_form').find('input[name="port"]').val(port_id);
+                $('#ajax_submit_edit').click(function () {
+                    $.ajax({
+                        url:"/app01/edit_ajax",
+                        type:'POST',
+                        data :$('#edit_form').serialize(),
+                        //上边的这行代码就是获取id是edit_form这个form表达的所有数据打包发给后台了
+                        success:function (data) {
+                                var obj = JSON.parse(data);
+                                if (obj.status){
+                                    location.reload();
+                                }else {
+                                    $('#error_meg').text(obj.error);
+                                }
+                        }
+                    })
+                });
+            });
+            //删除操作
+            $('.delete').click(function () {
+                var hid = $(this).parent().parent().attr('hid');
+                $.ajax({
+                    url:"/app01/host_del",
+                    type:'POST',
+                    data :{'hid':hid},
+                    success:function (data) {
+                            var obj = JSON.parse(data);
+                            if (obj.status){
+                                location.reload();
+                            }else {
+                                $('#error_meg').text(obj.error);
+                            }
+                    }
+                })
+            });
+        });
+
+    </script>
+</body>
+</html>
